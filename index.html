@@ -1,18 +1,69 @@
 <!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Tide Loom</title>
 <style>
 *{box-sizing:border-box}body{max-width:40rem;margin:6vh auto;padding:1.25rem;background:#092731;color:#edf8ee;font:1.12rem/1.5 system-ui}h1{font:italic bold 3rem Georgia;margin:0}#sea{display:flex;gap:.35rem}#sea div{position:relative;flex:1;height:8rem;background:#163b44;overflow:hidden;text-align:center;border-radius:.5rem}#sea b{position:absolute;inset:auto 0 0;background:#33968c;color:#fff}button{background:#d7eed5;color:#143a3d;border:0;border-radius:.5rem;padding:.85rem;margin:.2rem;font:inherit;cursor:pointer}button:disabled{opacity:.45}output{display:block;margin:.8rem 0}
-</style><main><h1>Tide Loom</h1><p>Raise the floats to match their targets. Each pedal lifts three floats one step. After 2, a float returns to 0.</p><div id="sea"></div><output id="status" aria-live="polite"></output><section id="controls"></section><button id="undo">Undo</button><button id="next">Next loom</button></main>
+#sea .float-number{display:block;background:#d7eed5;color:#143a3d;font-size:.875rem;font-weight:700;line-height:1.25rem}
+ </style><main><h1>Tide Loom</h1><p>Raise the floats to match their targets. Each pedal lifts three floats one step. After 2, a float returns to 0.</p><div id="sea"></div><output id="status" aria-live="polite"></output><section id="controls"></section><button id="undo">Undo</button><button id="next">Next loom</button></main>
 <script src="loom.js"></script><script>
-let level=0, board=Loom.start(), history=[];
+const saveKey = 'tide-loom.competition.v1';
+let level = 0;
+let board = Loom.start(level);
+let history = [];
+let moves = '';
+
+function restore() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(saveKey));
+    if (!saved || !Number.isInteger(saved.level) || saved.level < 0 || saved.level >= 26 ||
+        typeof saved.moves !== 'string') return;
+    const chart = Loom.connections(saved.level);
+    const previousBoards = [];
+    let restored = Loom.start(saved.level);
+    for (const digit of saved.moves) {
+      const pedal = '0123'.indexOf(digit);
+      if (pedal < 0 || pedal >= chart.length) return;
+      previousBoards.push(restored);
+      restored = Loom.pull(restored, pedal, saved.level);
+    }
+    level = saved.level;
+    history = previousBoards;
+    board = restored;
+    moves = saved.moves;
+  } catch {
+    // Storage may be disabled or contain an incomplete save.
+  }
+}
+
+function save() {
+  try {
+    localStorage.setItem(saveKey, JSON.stringify({level, moves}));
+  } catch {
+    // The game remains playable when browser storage is unavailable.
+  }
+}
 const sea=document.querySelector('#sea'), statusLine=document.querySelector('#status');
 const undo=document.querySelector('#undo'), next=document.querySelector('#next'), controls=document.querySelector('#controls');
 function render(){
  const target=Loom.target(level), won=board.every((v,i)=>v===target[i]);
- sea.replaceChildren(...board.map((v,i)=>{const cell=document.createElement('div'),float=document.createElement('b');cell.setAttribute('role','img');cell.setAttribute('aria-label', 'Float '+(i+1)+', current '+v+', target '+target[i]);cell.textContent='⚑ '+target[i];float.textContent=v;float.style.height=(22+v*20)+'%';cell.append(float);return cell}));
+ sea.replaceChildren(...board.map((v,i)=>{const cell=document.createElement('div'),float=document.createElement('b');cell.setAttribute('role','img');cell.setAttribute('aria-label', 'Float '+(i+1)+', current '+v+', target '+target[i]);const number=document.createElement('span');number.className='float-number';number.textContent='#'+(i+1);cell.append(number,'⚑ '+target[i]);float.textContent=v;float.style.height=(22+v*20)+'%';cell.append(float);return cell}));
  statusLine.textContent=(won?'Matched!':'Loom '+(level+1))+' · '+history.length+' pulls';
  next.textContent=level===25?'Play again':'Next loom'; if(won && level===25)statusLine.textContent+=' · All 26 looms complete!';
  undo.disabled=!history.length;next.disabled=!won;for(const button of controls.children)button.disabled=won;
 }
-['A · 1,2,4','B · 2,3,5','C · 1,3,6'].forEach((label,i)=>{const b=document.createElement('button');b.textContent=label;b.onclick=()=>{history.push(board);board=Loom.pull(board,i);render()};controls.append(b)});
-undo.onclick=()=>{board=history.pop();render()};next.onclick=()=>{level=(level+1)%26;history=[];board=Loom.start();render()};render();
+['A · 1,2,4','B · 2,3,5','C · 1,3,6'].forEach((label,i)=>{const b=document.createElement('button');b.textContent=label;b.onclick=()=>{history.push(board);board=Loom.pull(board,i);moves+=i;save();render()};controls.append(b)});
+undo.onclick = () => {
+  board = history.pop();
+  moves = moves.slice(0, -1);
+  save();
+  render();
+};
+next.onclick = () => {
+  level = (level + 1) % 26;
+  history = [];
+  moves = '';
+  board = Loom.start(level);
+  save();
+  render();
+};
+restore();
+render();
 </script></html>

@@ -1,5 +1,5 @@
 26 distinct nonzero goals reachable. All three cycles restore the board.
-✔ test.js (245.532514ms)
+✔ test.js (133.060651ms)
 ℹ tests 1
 ℹ suites 0
 ℹ pass 1
@@ -7,7 +7,7 @@
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 258.332328
+ℹ duration_ms 142.486423
 ℹ start of coverage report
 ℹ ----------------------------------------------------------
 ℹ file      | line % | branch % | funcs % | uncovered lines
